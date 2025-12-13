@@ -1,0 +1,8 @@
+# Celdas que no contengan las palabras "x" "y"
+
+df_sin_geriatra = df[
+    ~df["Término de búsqueda"]
+    .str.contains("x|y", case=False, na=False)
+]
+
+df_sin_geriatra.sort_values("Clics", ascending=False).head(10)
