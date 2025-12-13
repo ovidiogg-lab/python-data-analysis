@@ -1,3 +1,13 @@
+# Agrupar por término y sumar el coste, aquí no es ptl, se puede ordenar de cualquier otra forma esto es un ejemplo
+top_10_coste = (
+    df_sin_geriatra
+    .groupby("Término de búsqueda", as_index=False)["Coste"]
+    .sum()
+    .sort_values("Coste", ascending=False)
+    .head(10)
+)
+
+
 # Grafica de barras horizontales
 plt.figure()
 plt.barh(
