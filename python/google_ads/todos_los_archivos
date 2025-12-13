@@ -1,7 +1,0 @@
-# Lista y muestra en pantalla todos los archivos y subcarpetas contenidos dentro de una ruta específica del sistema.
-
-carpeta = r""
-archivos = os.listdir(carpeta)
-
-for a in archivos:
-    print(a)
