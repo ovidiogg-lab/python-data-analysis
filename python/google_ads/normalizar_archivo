@@ -1,0 +1,66 @@
+# Carga automáticamente un archivo CSV o Excel aunque no tenga extensión, 
+# detectando por sí sola el tipo de archivo, encoding y separador, 
+# y lo devuelve como un DataFrame de pandas.
+
+def cargar_archivo(path):
+    with open(path, "rb") as f:
+        inicio = f.read(4)
+
+    # Excel moderno empieza con PK
+    if inicio[:2] == b"PK":
+        print("📊 Archivo Excel detectado (sin extensión)")
+        return pd.read_excel(path)
+
+    # Asumir CSV
+    with open(path, "rb") as f:
+        raw = f.read()
+        encoding = chardet.detect(raw)["encoding"]
+
+    print(f"📄 Archivo CSV detectado (sin extensión) | Encoding: {encoding}")
+
+    for sep in [",", ";", "\t"]:
+        try:
+            df = pd.read_csv(path, encoding=encoding, sep=sep)
+            print(f"✅ Separador detectado: '{sep}'")
+            return df
+        except:
+            pass
+
+    raise ValueError("No se pudo leer el archivo como CSV o Excel")
+
+
+# Verifica si una ruta existe y determina si corresponde a un archivo o a una carpeta usando funciones del módulo os.
+
+ruta = r"aquí va la ruta del archivo"
+
+print("Existe:", os.path.exists(ruta))
+print("Es archivo:", os.path.isfile(ruta))
+print("Es carpeta:", os.path.isdir(ruta))
+
+
+# Lista y muestra en pantalla todos los archivos y subcarpetas contenidos dentro de una ruta específica del sistema.
+
+carpeta = r"aquí va la ruta del archivo"
+archivos = os.listdir(carpeta)
+
+for a in archivos:
+    print(a)
+
+# Construye una ruta completa y segura uniendo la carpeta base con el nombre del archivo, usando el separador correcto del sistema operativo.
+
+carpeta = r"aquí va la ruta del archivo"
+
+ruta_archivo = os.path.join(carpeta, "informe_terminosbusqueda.csv")
+
+
+# Lee un archivo CSV/TSV desde una ruta específica y lo carga en un DataFrame de pandas, 
+# indicando el encoding, el separador y que se omitan las primeras filas del archivo.
+
+ruta_archivo = ruta_archivo  # la que ya tenías
+
+df = pd.read_csv(
+    ruta_archivo,
+    encoding="utf-16",
+    sep="\t",
+    skiprows=2
+)
