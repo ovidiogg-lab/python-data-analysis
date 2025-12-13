@@ -1,6 +1,6 @@
 # Verifica si una ruta existe y determina si corresponde a un archivo o a una carpeta usando funciones del módulo os.
 
-ruta = r"G:\Mi unidad\🖱️BigClickStudio\✅Clientes\👴Dra. Carmen\Google Ads\1.-Diciembre\informe terminos de busqueda"
+ruta = r""
 
 print("Existe:", os.path.exists(ruta))
 print("Es archivo:", os.path.isfile(ruta))
