@@ -1,0 +1,11 @@
+# Grafica de barras horizontales
+plt.figure()
+plt.barh(
+    top_10_coste["Término de búsqueda"],
+    top_10_coste["Coste"]
+)
+plt.xlabel("Coste")
+plt.ylabel("Término de búsqueda")
+plt.title("Top 10 términos de búsqueda con mayor coste (sin 'geriatra')")
+plt.gca().invert_yaxis()  # el mayor arriba
+plt.show()
