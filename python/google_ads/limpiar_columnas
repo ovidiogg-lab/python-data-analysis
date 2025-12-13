@@ -1,0 +1,17 @@
+# Limpia y convierte varias columnas numéricas del DataFrame, 
+# eliminando separadores de miles, reemplazando valores faltantes 
+# y transformándolas a tipo float para poder analizarlas correctamente.
+
+cols_numericas = [
+    "Clics", "Impr.", "CPC medio", "Coste",
+    "Conversiones", "Coste/conv."
+]
+
+for col in cols_numericas:
+    df[col] = (
+        df[col]
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .replace("—", "0")
+        .astype(float)
+    )
