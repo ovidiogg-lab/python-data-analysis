@@ -1,0 +1,8 @@
+# Filtra las palabras clave o términos con gasto y sin conversiones, 
+# los ordena por mayor coste y muestra los 10 más costosos para detectar oportunidades de negativas.
+
+negativas = df[
+    (df["Coste"] > 0) & (df["Conversiones"] == 0)
+].sort_values("Coste", ascending=False)
+
+negativas.head(10)
