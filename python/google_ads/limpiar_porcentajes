@@ -1,0 +1,13 @@
+# Limpia columnas de porcentaje quitando el símbolo %, normalizando decimales 
+# y convirtiéndolas a valores numéricos float para su análisis.
+
+cols_porcentaje = ["CTR", "Tasa de conv."]
+
+for col in cols_porcentaje:
+    df[col] = (
+        df[col]
+        .astype(str)
+        .str.replace("%", "", regex=False)
+        .str.replace(",", ".", regex=False)
+        .astype(float)
+    )
