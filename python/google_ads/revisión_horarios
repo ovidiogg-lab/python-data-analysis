@@ -1,0 +1,124 @@
+# Carga automáticamente un archivo CSV o Excel aunque no tenga extensión, 
+# detectando por sí sola el tipo de archivo, encoding y separador, 
+# y lo devuelve como un DataFrame de pandas.
+
+def cargar_archivo(path):
+    with open(path, "rb") as f:
+        inicio = f.read(4)
+
+    # Excel moderno empieza con PK
+    if inicio[:2] == b"PK":
+        print("📊 Archivo Excel detectado (sin extensión)")
+        return pd.read_excel(path)
+
+    # Asumir CSV
+    with open(path, "rb") as f:
+        raw = f.read()
+        encoding = chardet.detect(raw)["encoding"]
+
+    print(f"📄 Archivo CSV detectado (sin extensión) | Encoding: {encoding}")
+
+    for sep in [",", ";", "\t"]:
+        try:
+            df = pd.read_csv(path, encoding=encoding, sep=sep)
+            print(f"✅ Separador detectado: '{sep}'")
+            return df
+        except:
+            pass
+
+    raise ValueError("No se pudo leer el archivo como CSV o Excel")
+
+
+# Verifica si una ruta existe y determina si corresponde a un archivo o a una carpeta usando funciones del módulo os.
+
+ruta = r"escribir ruta"
+
+print("Existe:", os.path.exists(ruta))
+print("Es archivo:", os.path.isfile(ruta))
+print("Es carpeta:", os.path.isdir(ruta))
+
+
+# Lista y muestra en pantalla todos los archivos y subcarpetas contenidos dentro de una ruta específica del sistema.
+
+carpeta = r"escribir ruta"
+archivos = os.listdir(carpeta)
+
+for a in archivos:
+    print(a)
+
+# Construye una ruta completa y segura uniendo la carpeta base con el nombre del archivo, usando el separador correcto del sistema operativo.
+
+carpeta = r"escribir ruta"
+
+ruta_archivo = os.path.join(carpeta, "escribir_nombre_archivo.csv")
+
+
+# Lee un archivo CSV/TSV desde una ruta específica y lo carga en un DataFrame de pandas, 
+# indicando el encoding, el separador y que se omitan las primeras filas del archivo.
+
+ruta_archivo = ruta_archivo  # la que ya tenías
+
+df = pd.read_csv(
+    ruta_archivo,
+    encoding="utf-16",
+    sep="\t",
+    skiprows=2
+)
+
+
+# despues sigue limpiar y graficar resultados
+
+
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# 1. Limpieza de nombres de columnas
+df.columns = [c.replace('_Conversiones', '').strip() for c in df.columns]
+
+# 2. Definimos y filtramos los días
+dias_semana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+columnas_dias = [d for d in dias_semana if d in df.columns]
+
+# 3. Preparación y LIMPIEZA FORZADA de df_pivot
+if 'Hora del día' in df.columns:
+    df_pivot = df.set_index('Hora del día')[columnas_dias].copy()
+else:
+    df_pivot = df[columnas_dias].copy()
+
+# --- BLOQUE DE CORRECCIÓN DE ERROR ---
+# Convertimos todo a string, cambiamos coma por punto y forzamos a número
+for col in df_pivot.columns:
+    df_pivot[col] = (df_pivot[col].astype(str)
+                     .str.replace(',', '.', regex=False)
+                     .str.replace(r'[^\d.]', '', regex=True) # Elimina cualquier carácter extraño
+                     .replace(['', 'nan', 'None'], '0'))
+    df_pivot[col] = pd.to_numeric(df_pivot[col], errors='coerce').fillna(0)
+# -------------------------------------
+
+# 4. Visualización: Mapa de Calor
+plt.figure(figsize=(15, 10))
+sns.heatmap(
+    df_pivot, 
+    annot=True, 
+    fmt=".0f",           # Ahora sí funcionará porque son floats
+    cmap="YlGnBu", 
+    linewidths=.5, 
+    cbar_kws={'label': 'Total Conversiones'}
+)
+
+plt.title('Heatmap: Ventanas de Conversión Anual - Conduzone', fontsize=18, pad=20)
+plt.xlabel('Día de la Semana', fontsize=12)
+plt.ylabel('Hora del Día (Formato 24h)', fontsize=12)
+plt.show()
+
+# 5. Insights Rápidos
+resumen_hora = df_pivot.sum(axis=1)
+resumen_dia = df_pivot.sum(axis=0)
+
+print("--- 🚀 DIAGNÓSTICO DE PERFORMANCE ---")
+print(f"📍 Día con mayor volumen: {resumen_dia.idxmax()} ({resumen_dia.max():.0f} conversiones)")
+print(f"📍 Hora pico de intención: {resumen_hora.idxmax()}:00h ({resumen_hora.max():.0f} conversiones)")
+
+
+
