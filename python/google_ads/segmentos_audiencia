@@ -1,0 +1,274 @@
+#analizar los segmentos de audiencia
+cols = [
+    "Segmento de audiencia",
+    "Tipo",
+    "Estado",
+    "Clics",
+    "Impr.",
+    "CTR",
+    "CPC medio",
+    "Coste",
+    "Tasa de conv.",
+    "Conversiones",
+    "Coste/conv."
+]
+
+df_seg = df[cols].copy()
+
+
+# Limpia y convierte varias columnas numéricas del DataFrame, 
+# eliminando separadores de miles, reemplazando valores faltantes 
+# y transformándolas a tipo float para poder analizarlas correctamente.
+
+cols_numericas = [
+    "Clics", "Impr.", "CPC medio", "Coste",
+    "Conversiones", "Coste/conv."
+]
+
+for col in cols_numericas:
+    df[col] = (
+        df[col]
+        .astype(str)
+        .str.replace(",", "", regex=False)
+        .replace("—", "0")
+        .astype(float)
+    )
+
+
+
+# 1. Definición de funciones de limpieza robustas
+def clean_pct(series):
+    """
+    Limpia columnas de porcentaje: quita %, espacios, normaliza decimales 
+    y maneja placeholders de Google Ads.
+    """
+    return (
+        series.astype(str)
+        .str.strip()  # Elimina espacios en blanco como el de ' --'
+        .str.replace("%", "", regex=False)
+        .str.replace(",", ".", regex=False)
+        .replace(["--", "—", "-", ""], np.nan) # Maneja múltiples variantes de nulos
+        .astype(float)
+    )
+
+def clean_num(series):
+    """
+    Limpia columnas numéricas: quita separadores de miles y maneja nulos.
+    """
+    return (
+        series.astype(str)
+        .str.strip()
+        .str.replace(",", "", regex=False) # Quita comas de miles
+        .replace(["--", "—", "-", ""], np.nan)
+        .astype(float)
+    )
+
+# 2. Aplicación al DataFrame (Ejemplo basado en tu error)
+# Usamos .copy() para evitar el SettingWithCopyWarning si df_seg es un slice
+df_seg = df_seg.copy()
+
+cols_porcentaje = ["CTR", "Tasa de conv."]
+cols_metricas = ["Coste", "Clics", "Impr.", "Conversiones"]
+
+for col in cols_porcentaje:
+    if col in df_seg.columns:
+        df_seg[col] = clean_pct(df_seg[col])
+
+for col in cols_metricas:
+    if col in df_seg.columns:
+        df_seg[col] = clean_num(df_seg[col])
+
+# 3. Verificación de nulos
+print("Valores nulos detectados tras la limpieza:")
+print(df_seg[cols_porcentaje + ["Coste"]].isna().sum())
+
+# Ahora puedes calcular métricas seguras, ej: ROAS = Ingresos / Coste
+
+
+
+
+#ranking de desempeño
+df_top_conv = df_seg.sort_values("Conversiones", ascending=False)
+print(df_top_conv.head(10))
+
+
+
+
+#mejor cpa
+
+df_mejor_cpa = df_seg[df_seg["Conversiones"] > 0].sort_values("Coste/conv.", ascending=True)
+print(df_mejor_cpa.head(10))
+
+
+
+#analizar categorias
+
+def categorizar(seg):
+    seg = seg.lower()
+    if "fútbol" in seg or "deporte" in seg or "fitness" in seg:
+        return "Deporte"
+    if "tecnología" in seg:
+        return "Tecnología"
+    if "invers" in seg or "finanzas" in seg or "banca" in seg:
+        return "Finanzas / Inversión"
+    if "animal" in seg or "mascota" in seg:
+        return "Animales"
+    if "compras" in seg:
+        return "Compras"
+    if "familia" in seg or "hogar" in seg or "jardín" in seg:
+        return "Familia / Hogar"
+    if "belleza" in seg or "cuidado personal" in seg:
+        return "Belleza"
+    if "noticias" in seg or "política" in seg:
+        return "Noticias / Política"
+    if "viaje" in seg:
+        return "Viajes"
+    if "alimentación" in seg or "cocina" in seg:
+        return "Comida"
+    return "Otros"
+
+
+
+
+    # Filtramos solo los que cayeron en 'Otros' y tienen conversiones
+analisis_otros = df_seg[df_seg["Categoría"].isin(["Otros", "Otros / Sin Segmento"])]
+
+# Vemos los 20 segmentos 'Otros' que más conversiones generan
+top_otros = (
+    analisis_otros.groupby("Segmento de audiencia")["Conversiones"]
+    .sum()
+    .sort_values(ascending=False)
+    .head(20)
+)
+
+print("Top 20 segmentos sin categorizar (Potencial de ROAS):")
+print(top_otros)
+
+
+
+from collections import Counter
+import re
+
+# Extraemos todos los nombres de segmentos que tienen al menos 1 conversión y están en 'Otros'
+segmentos_otros = analisis_otros[analisis_otros["Conversiones"] > 0]["Segmento de audiencia"].dropna().unique()
+
+# Contamos palabras más frecuentes (limpiando conectores comunes)
+palabras_clave = []
+for s in segmentos_otros:
+    # Limpiamos y separamos palabras
+    words = re.findall(r'\w+', s.lower())
+    palabras_clave.extend(words)
+
+# Filtramos 'stop words' manuales para marketing
+stop_words = {'y', 'de', 'la', 'el', 'en', 'market', 'affinity', 'custom', 'audiencia'}
+frecuencia = Counter([w for w in palabras_clave if w not in stop_words and len(w) > 3])
+
+print("Palabras más frecuentes en segmentos exitosos no categorizados:")
+for word, count in frecuencia.most_common(15):
+    print(f"{word}: {count} apariciones")
+
+
+
+
+import pandas as pd
+import numpy as np
+import unicodedata
+
+def normalizar_texto(texto):
+    """Elimina acentos y convierte a minúsculas para comparaciones precisas."""
+    if pd.isna(texto): return ""
+    # Eliminar acentos
+    texto = unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('utf-8')
+    return texto.lower().strip()
+
+def categorizar_v2(seg):
+    seg_limpio = normalizar_texto(seg)
+    if not seg_limpio or "all visitors" in seg_limpio:
+        return "Retargeting / General"
+
+    # Diccionario de patrones: {Categoría: [palabras clave]}
+    reglas = {
+        "Tecnología": ["tecnolog", "it", "software", "comput"],
+        "Empleo/B2B": ["empleo", "trabajo", "ejecutivo", "administracion", "empresa", "empresario", "b2b"],
+        "Viajes": ["viaje", "turismo", "vuelo", "hotel"],
+        "Belleza": ["belleza", "bienestar", "cuidado personal", "peluqueria"],
+        "Social Media": ["redes sociales", "social media", "influencer"],
+        "Moda": ["ropa", "complemento", "moda", "calzado"],
+        "Demográfico/Familia": ["hijos", "adolescente", "padres", "casado", "soltero"],
+        "Educación": ["posgrado", "universitario", "grado", "estudiante"],
+        "Finanzas": ["invers", "finanzas", "banca", "dinero"]
+    }
+
+    for categoria, palabras in reglas.items():
+        if any(p in seg_limpio for p in palabras):
+            return categoria
+            
+    return "Otros (Sin clasificar)"
+
+# Aplicamos la nueva lógica
+df_seg["Categoría"] = df_seg["Segmento de audiencia"].apply(categorizar_v2)
+
+
+
+
+
+# Agrupamos por la nueva categoría
+performance_cat = df_seg.groupby("Categoría").agg({
+    "Coste": "sum",
+    "Conversiones": "sum",
+    "Clics": "sum"
+}).reset_index()
+
+# Calculamos el CPA (Coste / Conversiones)
+performance_cat["CPA"] = performance_cat["Coste"] / performance_cat["Conversiones"]
+
+# Ordenamos por Conversiones para ver el volumen
+performance_cat = performance_cat.sort_values("Conversiones", ascending=False)
+
+print("Resumen de Performance por Categoría:")
+print(performance_cat)
+
+
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# 1. Preparación de datos para visualización
+# Eliminamos 'Educación' si tiene NaN en CPA para no ensuciar el gráfico
+plot_df = performance_cat.dropna(subset=['CPA']).copy()
+plot_df = plot_df[plot_df['Categoría'] != 'Retargeting / General'] # Quitamos el general para ver mejor los nichos
+
+# 2. Creamos un gráfico de burbujas: CPA vs Conversiones
+# El tamaño de la burbuja será el Coste (cuánto dinero estamos arriesgando)
+plt.figure(figsize=(12, 8))
+sns.set_style("whitegrid")
+
+scatter = plt.scatter(
+    x=plot_df['CPA'], 
+    y=plot_df['Conversiones'],
+    s=plot_df['Coste'] / 100, # Escalamos el tamaño para que sea legible
+    alpha=0.6,
+    c=plot_df['CPA'],
+    cmap='RdYlGn_r' # Rojo para CPA alto, Verde para CPA bajo
+)
+
+# Línea de referencia del CPA Promedio (basado en Retargeting/General)
+cpa_objetivo = 66.67
+plt.axvline(cpa_objetivo, color='red', linestyle='--', label=f'CPA Promedio Account (${cpa_objetivo})')
+
+# Etiquetas de categorías
+for i, txt in enumerate(plot_df['Categoría']):
+    plt.annotate(txt, (plot_df['CPA'].iat[i], plot_df['Conversiones'].iat[i]), 
+                 xytext=(10, 5), textcoords='offset points', fontsize=10)
+
+plt.title('Matriz de Optimización: Volumen vs Eficiencia por Segmento', fontsize=15)
+plt.xlabel('CPA (Menor es mejor)', fontsize=12)
+plt.ylabel('Volumen de Conversiones', fontsize=12)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# 3. Cálculo de ahorro potencial
+ahorro_otros = plot_df[plot_df['Categoría'] == 'Otros (Sin clasificar)']['Coste'].sum()
+print(f"Tip de Data Sensei: Si mueves los ${ahorro_otros:.2f} de 'Otros' a 'Demográfico/Familia', "
+      f"podrías obtener aprox. {int(ahorro_otros / 17.22)} conversiones extra con el mismo gasto.")
