@@ -1,0 +1,70 @@
+# 1. CONFIGURACIÓN Y FILTRADO DE "GANADORES"
+# ---------------------------------------------------------
+# Definimos qué es un "buen segmento": 
+# Tiene conversiones Y un CPA por debajo del promedio (o un umbral que definas)
+
+cpa_promedio = df_seg[df_seg["Conversiones"] > 0]["Coste/conv."].median()
+print(f"CPA Mediano de la cuenta: ${cpa_promedio:.2f}")
+
+# Filtramos los segmentos "Estrella"
+df_winners = df_seg[
+    (df_seg["Conversiones"] > 0) & 
+    (df_seg["Coste/conv."] <= cpa_promedio * 1.2) # Permitimos un 20% de margen sobre la media
+].copy()
+
+print(f"Se encontraron {len(df_winners)} segmentos de alto rendimiento para analizar.")
+
+# ---------------------------------------------------------
+# 2. EXTRACCIÓN DE ADN (PALABRAS CLAVE PARA CUSTOM SEGMENTS)
+# ---------------------------------------------------------
+# Analizamos los nombres de los segmentos ganadores para encontrar patrones
+# que Google Ads pueda usar para encontrar gente nueva.
+
+def extraer_palabras(texto):
+    if pd.isna(texto): return []
+    # Normalizar: minúsculas y sin acentos
+    texto = unicodedata.normalize('NFKD', str(texto)).encode('ascii', 'ignore').decode('utf-8').lower()
+    # Extraer solo palabras
+    return re.findall(r'\w+', texto)
+
+palabras_raw = []
+for segmento in df_winners["Segmento de audiencia"]:
+    palabras_raw.extend(extraer_palabras(segmento))
+
+# Filtramos palabras vacías (Stop Words) que no aportan valor semántico
+stop_words = {
+    'de', 'la', 'el', 'en', 'y', 'los', 'las', 'del', 'para', 'por', 'con', 
+    'segment', 'audience', 'market', 'affinity', 'custom', 'visitors', 'all', 
+    'google', 'users', 'similar', 'to', 'of', 'in', 'and'
+}
+
+# Contamos las palabras más repetidas en tus segmentos exitosos
+frecuencia = Counter([w for w in palabras_raw if w not in stop_words and len(w) > 3])
+
+print("\n--- ESTRATEGIA 1: CREAR SEGMENTOS PERSONALIZADOS ---")
+print("Crea un 'Custom Segment' en Google Ads basado en términos de búsqueda")
+print("usando estas palabras clave que ya funcionan en tus audiencias:")
+print("-" * 60)
+
+top_keywords = frecuencia.most_common(20)
+for word, count in top_keywords:
+    print(f"Palabra: '{word}' (Aparece en {count} segmentos exitosos)")
+
+# ---------------------------------------------------------
+# 3. SUGERENCIAS DE CATEGORÍAS AFINES
+# ---------------------------------------------------------
+# Si tienes categorización (del paso anterior), vemos qué categorías dominan
+if "Categoría" in df_winners.columns:
+    print("\n--- ESTRATEGIA 2: EXPANSIÓN DE CATEGORÍAS ---")
+    print("Busca segmentos en Google Ads dentro de estas categorías:")
+    print(df_winners["Categoría"].value_counts().head(5))
+
+# ---------------------------------------------------------
+# 4. EXPORTACIÓN PARA AUDIENCE SIGNALS
+# ---------------------------------------------------------
+# Exportamos los nombres exactos para que los copies y pegues
+print("\n--- ESTRATEGIA 3: AUDIENCE SIGNALS ---")
+print("Copia estos segmentos exactos y úsalos como 'Señal de Audiencia'")
+print("en tus campañas de Performance Max:")
+print("-" * 60)
+print(df_winners.sort_values("Conversiones", ascending=False)["Segmento de audiencia"].head(10).to_string(index=False))
