@@ -1,0 +1,16 @@
+# 1. FILTRAR Y MOSTRAR LAS NEGATIVAS SUGERIDAS
+# Filtramos de nuevo asegurándonos de excluir filas de "Total" por si acaso
+negativas_detalle = df[
+    (df['Intencion'] == 'Informativa') & 
+    (df['Conversiones'] == 0) & 
+    (~df['Término de búsqueda'].str.contains("Total:", na=False))
+]
+
+print("--- LISTA DE PALABRAS PARA NEGATIVIZAR (ORDENADAS POR COSTE) ---")
+# Mostramos el término y cuánto has gastado en él
+print(negativas_detalle[['Término de búsqueda', 'Coste', 'Impr.']].sort_values(by='Coste', ascending=False))
+
+# 2. FORMATO PARA COPIAR Y PEGAR EN GOOGLE ADS
+print("\n--- FORMATO PARA COPIAR A GOOGLE ADS ---")
+for termino in negativas_detalle['Término de búsqueda'].unique():
+    print(f'"{termino}"')
