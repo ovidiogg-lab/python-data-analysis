@@ -63,3 +63,36 @@ print("--- INSIGHTS ESTRATÉGICOS PARA ROAS ---")
 resumen_cat = df_clean.groupby('Categoria').agg({'Coste': 'sum', 'Conversiones': 'sum', 'CTR': 'mean'})
 resumen_cat['CPA'] = resumen_cat['Coste'] / resumen_cat['Conversiones']
 print(resumen_cat)
+
+
+
+
+
+
+# 1. DEFINICIÓN DE CATEGORÍAS (Aseguramos que se aplique al DF limpio)
+# Agregamos términos geográficos ya que suelen indicar búsqueda de especialista
+palabras_especialista = ['reumatologo', 'reumatólogo', 'especialista', 'clinica', 'doctor', 'dr', 'guadalajara', 'zapopan']
+
+def categorizar_especifico(texto):
+    texto = str(texto).lower()
+    if any(word in texto for word in palabras_especialista):
+        return 'Especialista / Local'
+    return 'Síntoma / Informativo'
+
+# Aplicamos la categorización
+df_clean['Categoria_Detallada'] = df_clean['Término de búsqueda'].apply(categorizar_especifico)
+
+# 2. MOSTRAR LOS TÉRMINOS POR CATEGORÍA
+print("--- DESGLOSE DE PALABRAS CLAVE POR CATEGORÍA ---")
+
+for cat in df_clean['Categoria_Detallada'].unique():
+    print(f"\n📌 CATEGORÍA: {cat}")
+    # Filtramos y ordenamos por Clics para ver lo más relevante
+    temp_df = df_clean[df_clean['Categoria_Detallada'] == cat].sort_values(by='Clics', ascending=False)
+    
+    # Mostramos los términos, Clics y Conversiones
+    print(temp_df[['Término de búsqueda', 'Clics', 'Conversiones', 'Coste']].to_string(index=False))
+    print("-" * 50)
+
+# 3. EXPORTAR A CSV (Opcional, por si quieres revisarlo en Excel)
+# df_clean.to_csv("analisis_categorias_ads.csv", index=False)
