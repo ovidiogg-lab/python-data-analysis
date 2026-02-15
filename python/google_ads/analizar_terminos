@@ -14,3 +14,52 @@ print(negativas_detalle[['Término de búsqueda', 'Coste', 'Impr.']].sort_values
 print("\n--- FORMATO PARA COPIAR A GOOGLE ADS ---")
 for termino in negativas_detalle['Término de búsqueda'].unique():
     print(f'"{termino}"')
+
+
+
+
+
+# 0. Limpieza de seguridad (Excluimos filas de Totales para análisis limpio)
+df_clean = df[~df['Término de búsqueda'].str.contains("Total:", na=False)].copy()
+
+# 1. CATEGORIZACIÓN: Síntoma vs Especialista
+def categorizar_termino(texto):
+    texto = str(texto).lower()
+    especialistas = ['reumatologo', 'reumatólogo', 'especialista', 'clinica', 'doctor', 'dr']
+    if any(word in texto for word in especialistas):
+        return 'Busca Especialista (Venta)'
+    return 'Busca Síntoma (Educativo)'
+
+df_clean['Categoria'] = df_clean['Término de búsqueda'].apply(categorizar_termino)
+
+# 2. ANÁLISIS DE LONG-TAIL (Longitud de palabras)
+df_clean['Num_Palabras'] = df_clean['Término de búsqueda'].apply(lambda x: len(str(x).split()))
+
+# --- VISUALIZACIONES ---
+
+# A. Rendimiento por Categoría
+plt.figure(figsize=(10, 5))
+sbs.barplot(data=df_clean, x='Categoria', y='Conversiones', estimator=sum, palette='magma')
+plt.title('Conversiones Totales: ¿Síntomas o Especialistas?')
+plt.show()
+
+# B. Eficiencia por Tipo de Concordancia
+plt.figure(figsize=(10, 5))
+sbs.boxplot(data=df_clean[df_clean['Conversiones'] > 0], x='Tipo de concordancia', y='Coste/conv.', palette='Set2')
+plt.title('Distribución de CPA por Tipo de Concordancia')
+plt.ylabel('CPA (Coste por consulta)')
+plt.xticks(rotation=45)
+plt.show()
+
+# C. Análisis Long-Tail: ¿Son mejores las frases largas?
+plt.figure(figsize=(10, 5))
+sbs.lineplot(data=df_clean, x='Num_Palabras', y='Tasa de conv.', marker='o')
+plt.title('Tasa de Conversión vs. Número de Palabras en la Búsqueda')
+plt.xlabel('Cantidad de palabras en el término')
+plt.show()
+
+# --- INSIGHTS ESTRATÉGICOS ---
+print("--- INSIGHTS ESTRATÉGICOS PARA ROAS ---")
+resumen_cat = df_clean.groupby('Categoria').agg({'Coste': 'sum', 'Conversiones': 'sum', 'CTR': 'mean'})
+resumen_cat['CPA'] = resumen_cat['Coste'] / resumen_cat['Conversiones']
+print(resumen_cat)
