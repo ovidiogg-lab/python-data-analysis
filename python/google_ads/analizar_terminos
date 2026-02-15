@@ -19,6 +19,12 @@ for termino in negativas_detalle['Término de búsqueda'].unique():
 
 
 
+
+
+
+
+
+
 # 0. Limpieza de seguridad (Excluimos filas de Totales para análisis limpio)
 df_clean = df[~df['Término de búsqueda'].str.contains("Total:", na=False)].copy()
 
@@ -69,6 +75,11 @@ print(resumen_cat)
 
 
 
+
+
+
+
+
 # 1. DEFINICIÓN DE CATEGORÍAS (Aseguramos que se aplique al DF limpio)
 # Agregamos términos geográficos ya que suelen indicar búsqueda de especialista
 palabras_especialista = ['reumatologo', 'reumatólogo', 'especialista', 'clinica', 'doctor', 'dr', 'guadalajara', 'zapopan']
@@ -96,3 +107,62 @@ for cat in df_clean['Categoria_Detallada'].unique():
 
 # 3. EXPORTAR A CSV (Opcional, por si quieres revisarlo en Excel)
 # df_clean.to_csv("analisis_categorias_ads.csv", index=False)
+
+
+
+
+
+
+
+
+# 1. PREPARACIÓN Y CATEGORIZACIÓN (Aseguramos que las columnas existan)
+# Excluimos filas de totales para no ensuciar el análisis
+df_clean = df[~df['Término de búsqueda'].str.contains("Total:", na=False)].copy()
+
+# Definimos los criterios de "Especialista"
+palabras_especialista = ['reumatologo', 'reumatólogo', 'especialista', 'clinica', 'doctor', 'dr', 'guadalajara', 'zapopan']
+
+def categorizar_especifico(texto):
+    texto = str(texto).lower()
+    if any(word in texto for word in palabras_especialista):
+        return 'Especialista / Local'
+    return 'Síntoma / Informativo'
+
+# Creamos la columna que faltaba
+df_clean['Categoria_Detallada'] = df_clean['Término de búsqueda'].apply(categorizar_especifico)
+
+# 2. IDENTIFICACIÓN DE CANDIDATAS A POSITIVAS
+ctr_promedio = df_clean['CTR'].mean()
+
+# Filtramos: Términos NO añadidos que ya convirtieron O que tienen CTR arriba del promedio
+candidatas_positivas = df_clean[
+    (df_clean['Añadido/excluido'] == 'Ninguno') & 
+    (
+        (df_clean['Conversiones'] > 0) | 
+        ((df_clean['CTR'] > ctr_promedio) & (df_clean['Clics'] > 0))
+    )
+].copy()
+
+# 3. CALIFICACIÓN DE POTENCIAL (Ahora sí encontrará 'Categoria_Detallada')
+def calificar_potencial(row):
+    if row['Conversiones'] > 0:
+        return '⭐ ORO: Ya convierte'
+    if row['Categoria_Detallada'] == 'Especialista / Local':
+        return '🥈 PLATA: Alta Intención'
+    return '🥉 BRONCE: Relevante (CTR alto)'
+
+candidatas_positivas['Potencial'] = candidatas_positivas.apply(calificar_potencial, axis=1)
+
+# 4. VISUALIZACIÓN
+plt.figure(figsize=(10, 6))
+sbs.barplot(
+    data=candidatas_positivas.sort_values('Coste', ascending=False).head(15), 
+    x='Coste', y='Término de búsqueda', hue='Potencial'
+)
+plt.title('Top Candidatas a Positivas (Por Coste Generado)')
+plt.grid(True, alpha=0.2)
+plt.show()
+
+# 5. LISTADO PARA COPIAR A GOOGLE ADS
+print("--- LISTADO DE PALABRAS POSITIVAS SUGERIDAS ---")
+print(candidatas_positivas[['Término de búsqueda', 'Potencial', 'CTR', 'Conversiones', 'Coste']].sort_values(by='Conversiones', ascending=False).to_string(index=False))
