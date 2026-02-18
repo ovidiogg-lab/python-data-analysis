@@ -130,6 +130,23 @@ def categorizar(seg):
 
 
 
+
+
+# APLICACIÓN DE CATEGORÍAS
+# Este bloque debe ir después de definir la función 'categorizar'
+# y antes de intentar filtrar por la columna 'Categoría'
+
+df_seg["Categoría"] = df_seg["Segmento de audiencia"].apply(
+    lambda x: categorizar(str(x)) if pd.notnull(x) else "Otros / Sin Segmento"
+)
+
+print("✅ Columna 'Categoría' generada. Ya puedes ejecutar el análisis de ROAS.")
+
+
+
+
+
+
     # Filtramos solo los que cayeron en 'Otros' y tienen conversiones
 analisis_otros = df_seg[df_seg["Categoría"].isin(["Otros", "Otros / Sin Segmento"])]
 
