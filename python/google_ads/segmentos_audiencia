@@ -131,7 +131,6 @@ def categorizar(seg):
 
 
 
-
 # APLICACIÓN DE CATEGORÍAS
 # Este bloque debe ir después de definir la función 'categorizar'
 # y antes de intentar filtrar por la columna 'Categoría'
@@ -141,7 +140,6 @@ df_seg["Categoría"] = df_seg["Segmento de audiencia"].apply(
 )
 
 print("✅ Columna 'Categoría' generada. Ya puedes ejecutar el análisis de ROAS.")
-
 
 
 
