@@ -287,3 +287,119 @@ plt.show()
 ahorro_otros = plot_df[plot_df['Categoría'] == 'Otros (Sin clasificar)']['Coste'].sum()
 print(f"Tip de Data Sensei: Si mueves los ${ahorro_otros:.2f} de 'Otros' a 'Demográfico/Familia', "
       f"podrías obtener aprox. {int(ahorro_otros / 17.22)} conversiones extra con el mismo gasto.")
+
+
+
+
+
+
+# --- ANÁLISIS AVANZADO DE AUDIENCIAS PARA OPTIMIZACIÓN DE ROAS ---
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+# 1. Análisis de Gasto Desperdiciado (Wasted Spend)
+# Basado en la lógica de detección de negativas para optimizar presupuesto
+wasted_spend = df_seg[df_seg["Conversiones"] == 0].sort_values("Coste", ascending=False)
+total_wasted = wasted_spend["Coste"].sum()
+
+print(f"🚨 Gasto Desperdiciado Total: ${total_wasted:.2f}")
+print("Top 5 segmentos con mayor gasto y 0 conversiones:")
+print(wasted_spend[["Segmento de audiencia", "Coste", "Clics"]].head(5))
+
+# 2. Creación de la Matriz de Cuadrantes (Engagement vs. Intent)
+# Definimos promedios como puntos de corte
+mean_ctr = df_seg["CTR"].mean()
+mean_cr = df_seg["Tasa de conv."].mean()
+
+def clasificar_cuadrante(row):
+    if row["CTR"] >= mean_ctr and row["Tasa de conv."] >= mean_cr:
+        return "Estrellas (Escalar)"
+    if row["CTR"] < mean_ctr and row["Tasa de conv."] >= mean_cr:
+        return "Joyas Ocultas (Mejorar CTR/Ads)"
+    if row["CTR"] >= mean_ctr and row["Tasa de conv."] < mean_cr:
+        return "Atractivos pero No Compran (Revisar LP)"
+    return "Bajo Rendimiento (Eliminar/Reducir)"
+
+df_seg["Cuadrante"] = df_seg.apply(clasificar_cuadrante, axis=1)
+
+# 3. Visualización de Cuadrantes de Rendimiento
+plt.figure(figsize=(10, 6))
+sns.scatterplot(
+    data=df_seg, 
+    x="CTR", 
+    y="Tasa de conv.", 
+    hue="Cuadrante", 
+    size="Coste", 
+    sizes=(20, 500),
+    alpha=0.7
+)
+
+plt.axvline(mean_ctr, color='grey', linestyle='--')
+plt.axhline(mean_cr, color='grey', linestyle='--')
+plt.title("Matriz Estratégica: CTR vs Tasa de Conversión", fontsize=14)
+plt.xlabel("CTR (Engagement)")
+plt.ylabel("Tasa de Conv. (Intención de Compra)")
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout()
+plt.show()
+
+# 4. Ranking de los 10 mejores segmentos por 'Eficiencia' 
+# Usamos una visualización de barras horizontales para facilitar la lectura
+df_seg["Efficiency_Score"] = (df_seg["CTR"] * df_seg["Tasa de conv."]) / (df_seg["CPC medio"] + 1)
+top_efficient = df_seg.sort_values("Efficiency_Score", ascending=False).head(10)
+
+plt.figure(figsize=(8, 5))
+plt.barh(top_efficient["Segmento de audiencia"], top_efficient["Efficiency_Score"], color='skyblue')
+plt.xlabel("Score de Eficiencia")
+plt.title("Top 10 Segmentos con Mayor Potencial de ROAS")
+plt.gca().invert_yaxis() # El mejor arriba
+plt.show()
+
+
+
+
+
+
+# --- GENERACIÓN DE NUEVOS SEGMENTOS POTENCIALES ---
+
+# 1. Definimos los "Clústeres Ganadores" basados en tu gráfico
+cluster_map = {
+    "Cuidado Personal": ["cabello", "belleza", "bienestar"],
+    "Tech & Social": ["redes sociales", "tecnología", "noticias"],
+    "Business & Finance": ["empresas", "financieros", "empleo"]
+}
+
+# 2. Función para sugerir expansiones basadas en la data actual
+def sugerir_expansiones(df):
+    print("🚀 ESTRATEGIA DE EXPANSIÓN DE AUDIENCIAS")
+    print("-" * 50)
+    
+    # Identificar el top 1 global del gráfico
+    top_sector = "Cuidado Personal" # Basado en tu imagen de 'Productos para el cabello'
+    
+    sugerencias = {
+        "Cuidado Personal": ["Tratamientos antiedad", "Cosmética natural", "Cuidado de uñas"],
+        "Tech & Social": ["Creadores de contenido", "Gadgets de vanguardia", "Early adopters"],
+        "Business & Finance": ["Inversores ángeles", "Software SaaS B2B", "Logística para empresas"]
+    }
+    
+    for cluster, ideas in sugerencias.items():
+        print(f"\nSector: {cluster}")
+        for idea in ideas:
+            print(f"  - Probar Segmento: {idea}")
+
+sugerir_expansiones(df_seg)
+
+# 3. Tip de Data Scientist para ROAS:
+# Creamos una métrica de "Costo de Oportunidad"
+# Si un segmento tiene alto CTR pero bajo Coste, le falta presupuesto (Bid).
+oportunidades_bid = df_seg[
+    (df_seg["CTR"] > df_seg["CTR"].median()) & 
+    (df_seg["Coste"] < df_seg["Coste"].median())
+].sort_values("CTR", ascending=False)
+
+print("\n💡 TIP DE OPTIMIZACIÓN:")
+print(f"Tienes {len(oportunidades_bid)} segmentos con alto engagement pero poca inversión.")
+print("Considera subir el Bid en estos para ganar volumen.")
